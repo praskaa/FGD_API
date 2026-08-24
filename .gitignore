@@ -1,0 +1,12 @@
+# Python / pyRevit runtime artifacts
+__pycache__/
+*.py[cod]
+
+# Per-machine tool state (dark mode, always-on-top) — defaults are fine
+_settings.json
+
+# OS / editor noise
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
