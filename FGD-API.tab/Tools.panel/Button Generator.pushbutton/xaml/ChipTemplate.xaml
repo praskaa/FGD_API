@@ -1,0 +1,8 @@
+<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{DynamicResource ChipBorderStyle}">
+    <StackPanel Orientation="Horizontal">
+        <TextBlock x:Name="lbl_Chip"       Style="{DynamicResource ChipTextStyle}"/>
+        <Button    x:Name="btn_RemoveChip" Style="{DynamicResource ChipRemoveStyle}"/>
+    </StackPanel>
+</Border>

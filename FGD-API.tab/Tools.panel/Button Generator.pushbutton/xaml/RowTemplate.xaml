@@ -1,0 +1,142 @@
+<Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Margin="0,4,0,4">
+
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2*"/>
+        <ColumnDefinition Width="340"/>
+        <ColumnDefinition Width="3*"/>
+        <ColumnDefinition Width="40"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Name (top-aligned so it stays put when nested chips wrap) -->
+    <StackPanel Grid.Column="0"
+                Margin="0,3,12,0"
+                VerticalAlignment="Top">
+        <TextBox x:Name="tb_Name"/>
+        <!-- Inline validation message: name clash, missing name/children/URL/script, etc. -->
+        <TextBlock x:Name="tb_NameError"
+                   Text="Button Name Already Exists&#x2026;"
+                   Foreground="{DynamicResource RemoveBrush}"
+                   FontSize="11"
+                   FontWeight="SemiBold"
+                   Margin="2,3,0,0"
+                   TextWrapping="Wrap"
+                   Visibility="Collapsed"/>
+    </StackPanel>
+
+    <!-- Type badges (radio-style). Order: single buttons, then containers -->
+    <StackPanel Grid.Column="1"
+                Orientation="Horizontal"
+                VerticalAlignment="Top"
+                Margin="0,6,12,0">
+        <Border x:Name="badge_PushButton" Style="{DynamicResource BadgeUnselected}">
+            <TextBlock x:Name="lbl_PushButton" Text="PushButton" Style="{DynamicResource BadgeTextUnselected}"/>
+        </Border>
+        <Border x:Name="badge_Script"      Style="{DynamicResource BadgeUnselected}">
+            <TextBlock x:Name="lbl_Script"      Text="From Script"  Style="{DynamicResource BadgeTextUnselected}"/>
+        </Border>
+        <Border x:Name="badge_URLButton"  Style="{DynamicResource BadgeUnselected}">
+            <TextBlock x:Name="lbl_URLButton"  Text="URLButton"  Style="{DynamicResource BadgeTextUnselected}"/>
+        </Border>
+        <Border x:Name="badge_Stack"      Style="{DynamicResource BadgeUnselected}">
+            <TextBlock x:Name="lbl_Stack"      Text="Stack"      Style="{DynamicResource BadgeTextUnselected}"/>
+        </Border>
+        <Border x:Name="badge_Pulldown"   Style="{DynamicResource BadgeUnselected}">
+            <TextBlock x:Name="lbl_Pulldown"   Text="Pulldown"   Style="{DynamicResource BadgeTextUnselected}"/>
+        </Border>
+    </StackPanel>
+
+    <!-- Nested area: chips OR url OR script-picker, exactly one visible -->
+    <Grid Grid.Column="2" Margin="0,0,12,0" VerticalAlignment="Top">
+
+        <!-- Chips mode (Pulldown / Stack) -->
+        <WrapPanel x:Name="chipWrap" VerticalAlignment="Top">
+            <Grid x:Name="chipInputBox">
+                <TextBox x:Name="tb_ChipInput" Style="{DynamicResource ChipInputStyle}"/>
+                <TextBlock Text="',' to confirm"
+                           IsHitTestVisible="False"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextMutedBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ElementName=tb_ChipInput, Path=Text}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </WrapPanel>
+
+        <!-- URL mode (URLButton) -->
+        <Grid x:Name="urlArea" Visibility="Collapsed" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{DynamicResource UrlBadgeStyle}">
+                <TextBlock Text="URL"
+                           Foreground="{DynamicResource ChipTextBrush}"
+                           FontWeight="SemiBold"
+                           FontSize="11"/>
+            </Border>
+
+            <Grid Grid.Column="1" Margin="6,0,0,0">
+                <TextBox x:Name="tb_Url"/>
+                <TextBlock Text="https://..."
+                           IsHitTestVisible="False"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextMutedBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ElementName=tb_Url, Path=Text}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Grid>
+
+        <!-- Script mode (import an existing script.py via file dialog) -->
+        <Grid x:Name="scriptArea" Visibility="Collapsed" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    x:Name="btn_BrowseScript"
+                    Content="Browse script.py…"
+                    Style="{DynamicResource SecondaryOutlineButtonStyle}"/>
+
+            <TextBlock Grid.Column="1"
+                       x:Name="tb_ScriptPath"
+                       Text="No file selected"
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource TextMutedBrush}"/>
+        </Grid>
+    </Grid>
+
+    <!-- Row remove (red X) -->
+    <Button x:Name="btn_Remove"
+            Grid.Column="3"
+            Style="{DynamicResource RowRemoveStyle}"
+            VerticalAlignment="Top"
+            Margin="0,3,0,0"/>
+</Grid>
