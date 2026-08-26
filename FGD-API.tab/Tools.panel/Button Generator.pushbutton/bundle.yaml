@@ -1,0 +1,26 @@
+title:
+  en_us: |-
+    Button
+    Generator
+tooltip:
+  en_us: |-
+    Quick pyRevit Button Generator with a friendly UI form. Create
+    PushButtons, URLButtons, Stacks, Pulldowns, or import an existing
+    script.py straight into a brand-new PushButton in one go.
+
+    How-To:
+    1. Click to open the form.
+    2. Create rows for each Button/Container.
+    3. Set Name, select Type (PushButton, From Script, URLButton, Stack, Pulldown).
+    4. For "From Script": click Browse and pick an existing script.py.
+    5. Select Target Panel (optional).
+    6. Click Create Button. Validation issues show as red inline hints.
+
+    To-Do:
+    [FEATURE] - Generate panels/tabs directly from the form.
+
+    Last Updates:
+    - [25.08.2026] v1.0 Ported from TTW-API into PrasKaaPyKit.
+min_revit_version: 2024
+author: |-
+    PrasKaa
