@@ -61,6 +61,7 @@ TYPE_PULLDOWN   = 'Pulldown'
 ITEM_TYPES      = (TYPE_PUSHBUTTON, TYPE_SCRIPT, TYPE_URLBUTTON, TYPE_STACK, TYPE_PULLDOWN)
 SUFFIXES        = ('.pushbutton', '.urlbutton', '.stack', '.pulldown')
 STACK_MAX_CHILDREN = 3
+PULLDOWN_MAX_CHILDREN = 10
 
 # Final bundle suffix for each item type (used to build the on-disk folder name).
 # "Script" still produces a plain .pushbutton folder - only its script.py source differs.
@@ -79,6 +80,16 @@ SELECTED_STYLE = {
     TYPE_URLBUTTON:  'BadgeSelectedSingle',
     TYPE_STACK:      'BadgeSelectedContainer',
     TYPE_PULLDOWN:   'BadgeSelectedContainer',
+}
+
+# Educational hint-bar texts (Bahasa Indonesia) shown while hovering badges.
+DEFAULT_HINT = u'Arahkan kursor ke badge tipe untuk melihat penjelasan singkat.'
+HINT_FOR_TYPE = {
+    TYPE_PUSHBUTTON: u'PushButton: satu tombol menjalankan satu script. Folder .pushbutton.',
+    TYPE_SCRIPT:     u'From Script: membuat tombol dari file script.py yang sudah ada (tanpa menulis kode).',
+    TYPE_URLBUTTON:  u'URLButton: tombol yang membuka website. Isi kolom URL.',
+    TYPE_STACK:      u'Stack: kumpulan maksimal 3 item berjajar - boleh PushButton, Pulldown, atau campuran.',
+    TYPE_PULLDOWN:   u'Pulldown: satu tombol yang membuka daftar berisi hingga 10 PushButton.',
 }
 
 
@@ -279,6 +290,7 @@ class GeneratorForm(forms.WPFWindow):
         self.PreviewKeyDown               += self.on_window_keydown
         self.titleBar.MouseLeftButtonDown += self.on_titlebar_drag
         self.cb_Panel.SelectionChanged    += self.on_panel_changed
+        self.tb_Hint.Text = DEFAULT_HINT
 
         # Title-bar icon (if file is present)
         if icon_path and os.path.exists(icon_path):
@@ -356,7 +368,11 @@ class GeneratorForm(forms.WPFWindow):
 
         # 5) Behavior closures
         def at_chip_cap():
-            return state['kind'] == TYPE_STACK and len(state['children']) >= STACK_MAX_CHILDREN
+            if state['kind'] == TYPE_STACK:
+                return len(state['children']) >= STACK_MAX_CHILDREN
+            if state['kind'] == TYPE_PULLDOWN:
+                return len(state['children']) >= PULLDOWN_MAX_CHILDREN
+            return False
 
         def update_chip_input_visibility():
             chip_input_box.Visibility = Visibility.Collapsed if at_chip_cap() else Visibility.Visible
@@ -475,6 +491,9 @@ class GeneratorForm(forms.WPFWindow):
                     self.Dispatcher.BeginInvoke(Action(browse_script))
                 a.Handled = True
             bd.MouseLeftButtonDown += on_badge_click
+            # Educational hint-bar updates on badge hover.
+            bd.MouseEnter += lambda s, a, k=kind: self._set_hint(HINT_FOR_TYPE.get(k, DEFAULT_HINT))
+            bd.MouseLeave += lambda s, a: self._set_hint(DEFAULT_HINT)
 
         tb_chip.TextChanged    += on_chip_text_changed
         tb_chip.PreviewKeyDown += on_chip_keydown
@@ -539,6 +558,9 @@ class GeneratorForm(forms.WPFWindow):
     def _clear_global_error(self):
         self.tb_GlobalError.Visibility = Visibility.Collapsed
 
+    def _set_hint(self, text):
+        self.tb_Hint.Text = text
+
     def on_panel_changed(self, sender, args):
         self._clear_global_error()
 
@@ -592,8 +614,8 @@ class GeneratorForm(forms.WPFWindow):
                     problem = 'Duplicate name — already used in another row.'
                 else:
                     seen.add(key)
-                    if kind == TYPE_PULLDOWN and len(children) < 1:
-                        problem = 'Pulldown needs at least 1 nested button.'
+                    if kind == TYPE_PULLDOWN and not (1 <= len(children) <= PULLDOWN_MAX_CHILDREN):
+                        problem = 'Pulldown needs 1 to {} nested buttons (got {}).'.format(PULLDOWN_MAX_CHILDREN, len(children))
                     elif kind == TYPE_STACK and not (2 <= len(children) <= STACK_MAX_CHILDREN):
                         problem = 'Stack needs 2 or 3 nested buttons (got {}).'.format(len(children))
                     elif kind == TYPE_URLBUTTON and not url:
@@ -681,4 +703,4 @@ sessionmgr.reload_pyrevit()
 
 
 #███████████████████████████████████████████████████████████████████████████
-# PrasKaa Buttons Generator
+# Button Generator

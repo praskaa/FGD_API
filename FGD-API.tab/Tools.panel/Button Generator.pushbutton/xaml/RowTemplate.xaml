@@ -31,18 +31,180 @@
                 VerticalAlignment="Top"
                 Margin="0,6,12,0">
         <Border x:Name="badge_PushButton" Style="{DynamicResource BadgeUnselected}">
+            <Border.ToolTip>
+                <ToolTip MaxWidth="270" Placement="Bottom">
+                    <StackPanel>
+                        <TextBlock Text="PushButton" Style="{DynamicResource TooltipTitleStyle}"/>
+                        <TextBlock Style="{DynamicResource TooltipBodyStyle}"
+                                   Text="Tombol paling umum di pyRevit. Satu tombol menjalankan satu script saat diklik. Contoh: tombol 'Hitung Luas' yang menjalankan satu perintah."/>
+                        <Border Style="{DynamicResource TooltipStripStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{DynamicResource TooltipChipDimStyle}">
+                                    <TextBlock Text="BTN A" Style="{DynamicResource TooltipChipLabelStyle}"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Border>
+                                <Border Style="{DynamicResource TooltipChipDimStyle}">
+                                    <TextBlock Text="BTN B" Style="{DynamicResource TooltipChipLabelStyle}"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Border>
+                                <Border Style="{DynamicResource TooltipChipHotStyle}">
+                                    <TextBlock Text="Tombol" Style="{DynamicResource TooltipChipLabelStyle}" Foreground="White"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{DynamicResource TooltipFooterStyle}"
+                                   Text="Kapan memakai: Untuk satu perintah sederhana. Folder tombol berakhiran .pushbutton."/>
+                    </StackPanel>
+                </ToolTip>
+            </Border.ToolTip>
             <TextBlock x:Name="lbl_PushButton" Text="PushButton" Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
         <Border x:Name="badge_Script"      Style="{DynamicResource BadgeUnselected}">
+            <Border.ToolTip>
+                <ToolTip MaxWidth="270" Placement="Bottom">
+                    <StackPanel>
+                        <TextBlock Text="From Script" Style="{DynamicResource TooltipTitleStyle}"/>
+                        <TextBlock Style="{DynamicResource TooltipBodyStyle}"
+                                   Text="Membuat PushButton baru langsung dari file script.py yang sudah ada - biasanya script yang dibagikan oleh PrasKaa. Kamu tidak perlu menulis kode sama sekali."/>
+                        <Border Style="{DynamicResource TooltipStripStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{DynamicResource TooltipChipDimStyle}" Width="72">
+                                    <TextBlock Text="script.py" Style="{DynamicResource TooltipChipLabelStyle}"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Border>
+                                <Path Data="M0,0 L7,0 L3.5,6 Z" Fill="{DynamicResource TextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                <Border Style="{DynamicResource TooltipChipHotStyle}">
+                                    <TextBlock Text="Tombol" Style="{DynamicResource TooltipChipLabelStyle}" Foreground="White"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{DynamicResource TooltipFooterStyle}"
+                                   Text="Kapan memakai: Gunakan saat menerima file script.py dari orang lain."/>
+                    </StackPanel>
+                </ToolTip>
+            </Border.ToolTip>
             <TextBlock x:Name="lbl_Script"      Text="From Script"  Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
         <Border x:Name="badge_URLButton"  Style="{DynamicResource BadgeUnselected}">
+            <Border.ToolTip>
+                <ToolTip MaxWidth="270" Placement="Bottom">
+                    <StackPanel>
+                        <TextBlock Text="URLButton" Style="{DynamicResource TooltipTitleStyle}"/>
+                        <TextBlock Style="{DynamicResource TooltipBodyStyle}"
+                                   Text="Tombol yang membuka website saat diklik, bukan menjalankan script. Berguna untuk tautan ke panduan, template, atau situs."/>
+                        <Border Style="{DynamicResource TooltipStripStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{DynamicResource TooltipChipHotStyle}">
+                                        <TextBlock Text="Buka Web" Style="{DynamicResource TooltipChipLabelStyle}" Foreground="White"/>
+                                    </Border>
+                                    <Path Data="M0,0 L7,0 L3.5,6 Z" Fill="{DynamicResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <Border MaxWidth="150" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                        CornerRadius="2" Padding="0"
+                                        Background="{DynamicResource PanelBrush}"
+                                        BorderBrush="{DynamicResource HairlineBrush}"
+                                        BorderThickness="1">
+                                    <StackPanel>
+                                        <Border Height="5" Background="{DynamicResource HairlineBrush}"/>
+                                        <TextBlock Text="https://..." FontSize="9" Margin="4,2,4,3"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{DynamicResource TooltipFooterStyle}"
+                                   Text="Kapan memakai: Untuk tautan web. Wajib mengisi kolom URL."/>
+                    </StackPanel>
+                </ToolTip>
+            </Border.ToolTip>
             <TextBlock x:Name="lbl_URLButton"  Text="URLButton"  Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
         <Border x:Name="badge_Stack"      Style="{DynamicResource BadgeUnselected}">
+            <Border.ToolTip>
+                <ToolTip MaxWidth="270" Placement="Bottom">
+                    <StackPanel>
+                        <TextBlock Text="Stack" Style="{DynamicResource TooltipTitleStyle}"/>
+                        <TextBlock Style="{DynamicResource TooltipBodyStyle}"
+                                   Text="Sekelompok tombol yang berjajar dalam satu tempat. Maksimal 3 item dan boleh campuran PushButton dan Pulldown."/>
+                        <Border Style="{DynamicResource TooltipStripStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Width="120" Height="22" CornerRadius="3"
+                                            Background="{DynamicResource ChipBgBrush}">
+                                        <TextBlock Text="Menu" FontSize="9" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource ChipTextBrush}"/>
+                                    </Border>
+                                    <Path Data="M0,0 L7,0 L3.5,5 Z" Fill="{DynamicResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                </StackPanel>
+                                <Border Width="120" Height="22" CornerRadius="3" Margin="0,3,0,0"
+                                        Background="{DynamicResource ChipBgBrush}">
+                                    <TextBlock Text="PushButton" FontSize="9" HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource ChipTextBrush}"/>
+                                </Border>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                    <Border Width="120" Height="22" CornerRadius="3"
+                                            Background="{DynamicResource ChipBgBrush}">
+                                        <TextBlock Text="Menu" FontSize="9" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource ChipTextBrush}"/>
+                                    </Border>
+                                    <Path Data="M0,0 L7,0 L3.5,5 Z" Fill="{DynamicResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{DynamicResource TooltipFooterStyle}"
+                                   Text="Kapan memakai: Untuk 2-3 perintah yang berdekatan, misal tiga cara ekspor. Maksimal 3 item - bisa PushButton, Pulldown, atau campuran."/>
+                    </StackPanel>
+                </ToolTip>
+            </Border.ToolTip>
             <TextBlock x:Name="lbl_Stack"      Text="Stack"      Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
         <Border x:Name="badge_Pulldown"   Style="{DynamicResource BadgeUnselected}">
+            <Border.ToolTip>
+                <ToolTip MaxWidth="270" Placement="Bottom">
+                    <StackPanel>
+                        <TextBlock Text="Pulldown" Style="{DynamicResource TooltipTitleStyle}"/>
+                        <TextBlock Style="{DynamicResource TooltipBodyStyle}"
+                                   Text="Satu tombol yang, saat diklik, membuka daftar berisi banyak PushButton ke bawah. Cocok untuk banyak perintah dalam satu grup."/>
+                        <Border Style="{DynamicResource TooltipStripStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{DynamicResource TooltipChipHotStyle}">
+                                        <TextBlock Text="Menu" Style="{DynamicResource TooltipChipLabelStyle}" Foreground="White"/>
+                                    </Border>
+                                    <Path Data="M0,0 L7,0 L3.5,5 Z" Fill="{DynamicResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <Border MaxWidth="170" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                        CornerRadius="2"
+                                        Background="{DynamicResource PanelBrush}"
+                                        BorderBrush="{DynamicResource HairlineBrush}"
+                                        BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="PushButton 1" FontSize="9" Margin="6,2,6,1"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="PushButton 2" FontSize="9" Margin="6,1,6,1"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="PushButton 3" FontSize="9" Margin="6,1,6,1"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="&#8230; hingga 10" FontSize="9" Margin="6,1,6,2"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{DynamicResource TooltipFooterStyle}"
+                                   Text="Kapan memakai: Untuk banyak perintah dalam satu grup, misal 'Buat View'. Bisa berisi hingga 10 PushButton."/>
+                    </StackPanel>
+                </ToolTip>
+            </Border.ToolTip>
             <TextBlock x:Name="lbl_Pulldown"   Text="Pulldown"   Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
     </StackPanel>
@@ -119,7 +281,8 @@
 
             <Button Grid.Column="0"
                     x:Name="btn_BrowseScript"
-                    Content="Browse script.py…"
+                    Content="Browse script.py&#x2026;"
+                    ToolTip="Pilih file script.py dari PrasKaa untuk dijadikan tombol."
                     Style="{DynamicResource SecondaryOutlineButtonStyle}"/>
 
             <TextBlock Grid.Column="1"
