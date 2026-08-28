@@ -671,9 +671,11 @@ path_icon       = os.path.join(path_pushbutton, 'icon.png')
 sandbox_panel_name = 'Sandbox.panel'
 sandbox_panel_path = os.path.join(path_tab, sandbox_panel_name)
 if not os.path.isdir(sandbox_panel_path):
-    raise RuntimeError(
-        'Button Generator requires a "Sandbox.panel" folder alongside the '
-        'current tab. Please create it and try again.')
+    forms.alert(
+        'Button Generator requires a "Sandbox.panel" folder in the same '
+        'tab directory. Please create it and try again.',
+        title='Button Generator',
+        exitscript=True)
 panel_choices  = [sandbox_panel_name]
 current_panel  = sandbox_panel_name
 
