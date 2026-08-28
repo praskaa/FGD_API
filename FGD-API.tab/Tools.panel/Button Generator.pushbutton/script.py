@@ -665,8 +665,17 @@ path_xaml       = os.path.join(path_xaml_dir, 'GeneratorForm.xaml')
 path_icon       = os.path.join(path_pushbutton, 'icon.png')
 
 #2️⃣ Check Panel Names (for dropdown)
-panel_choices = sorted([f for f in os.listdir(path_tab) if f.endswith('.panel')])
-current_panel = os.path.basename(path_dev)
+# NOTE: Button Generator is restricted to generate buttons ONLY inside
+#       Sandbox.panel — never in Tools.panel or any other panel.
+#       The dropdown is hardcoded to a single choice: Sandbox.panel.
+sandbox_panel_name = 'Sandbox.panel'
+sandbox_panel_path = os.path.join(path_tab, sandbox_panel_name)
+if not os.path.isdir(sandbox_panel_path):
+    raise RuntimeError(
+        'Button Generator requires a "Sandbox.panel" folder alongside the '
+        'current tab. Please create it and try again.')
+panel_choices  = [sandbox_panel_name]
+current_panel  = sandbox_panel_name
 
 #3️⃣ Show form, collect plan
 form = GeneratorForm(path_xaml, path_tab, panel_choices, current_panel, icon_path=path_icon)
