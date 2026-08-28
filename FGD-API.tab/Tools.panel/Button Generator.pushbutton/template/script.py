@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 title = "MyButton"
 doc = """Version = 1.0
 Date    = 01.01.2026
@@ -28,3 +28,4 @@ output.close_others()
 
 output.print_md('# {}'.format(title))
 output.print_md('My new pyRevit tool.')
+# hook test marker

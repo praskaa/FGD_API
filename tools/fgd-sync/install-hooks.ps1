@@ -23,6 +23,7 @@ if [ -f "$SYNC_SCRIPT" ]; then
 fi
 '@
 
-Set-Content -Path $HookPath -Value $HookContent -Encoding UTF8
+# ASCII, no BOM: a UTF-8 BOM breaks the #!/bin/sh shebang under Git for Windows.
+[System.IO.File]::WriteAllText($HookPath, $HookContent, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "[install-hooks] OK: post-commit hook installed at $HookPath" -ForegroundColor Green
 Write-Host "[install-hooks] FGD commits will now auto-sync into PyPrasKaa (quiet, logged to tools/fgd-sync/sync.log)."
