@@ -70,7 +70,7 @@ $DST_EXTRA_CLEANUP = @('PrasKaaPyKit.tab/Development.panel/Toolbar Manager.pushb
 function Write-Log($msg) {
     $line = '{0} {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
     try { Add-Content -Path $LOG_PATH -Value $line -Encoding UTF8 } catch { }
-    Write-Host "[sync] $msg"
+    Write-Output "[sync] $msg"
 }
 
 function Sync-Folder($src, $dst) {
