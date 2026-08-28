@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 title = "Button\nGenerator"
-doc = """Version = 1.0
-Date    = 25.08.2026
+doc = """Version = 1.1
+Date    = 28.08.2026
 
 Description:
 Quick pyRevit Button Generator with a friendly UI form. Create
@@ -20,6 +20,7 @@ To-Do:
 [FEATURE] - Generate panels/tabs directly from the form.
 
 Last Updates:
+- [28.08.2026] v1.1 Auto-detect target panel (Sandbox-only in FGD, all panels otherwise).
 - [25.08.2026] v1.0 Ported from TTW-API into PrasKaaPyKit.
 
 Author: PrasKaa"""
@@ -665,19 +666,21 @@ path_xaml       = os.path.join(path_xaml_dir, 'GeneratorForm.xaml')
 path_icon       = os.path.join(path_pushbutton, 'icon.png')
 
 #2️⃣ Check Panel Names (for dropdown)
-# NOTE: Button Generator is restricted to generate buttons ONLY inside
-#       Sandbox.panel — never in Tools.panel or any other panel.
-#       The dropdown is hardcoded to a single choice: Sandbox.panel.
+# Runtime auto-detection: if a Sandbox.panel exists in this tab, restrict
+# the dropdown to Sandbox only (FGD). Otherwise show every panel in the
+# tab (PyPrasKaa), so the same code works in both extensions.
+try:
+    all_panels = sorted([f for f in os.listdir(path_tab)
+                         if f.endswith('.panel') and os.path.isdir(os.path.join(path_tab, f))])
+except OSError:
+    all_panels = []
 sandbox_panel_name = 'Sandbox.panel'
-sandbox_panel_path = os.path.join(path_tab, sandbox_panel_name)
-if not os.path.isdir(sandbox_panel_path):
-    forms.alert(
-        'Button Generator requires a "Sandbox.panel" folder in the same '
-        'tab directory. Please create it and try again.',
-        title='Button Generator',
-        exitscript=True)
-panel_choices  = [sandbox_panel_name]
-current_panel  = sandbox_panel_name
+if sandbox_panel_name in all_panels:
+    panel_choices = [sandbox_panel_name]   # FGD: restricted to Sandbox
+    current_panel = sandbox_panel_name
+else:
+    panel_choices = all_panels             # PyPrasKaa: any panel in tab
+    current_panel = None                   # GeneratorForm defaults to first item
 
 #3️⃣ Show form, collect plan
 form = GeneratorForm(path_xaml, path_tab, panel_choices, current_panel, icon_path=path_icon)

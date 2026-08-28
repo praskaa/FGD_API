@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
-__title__ = "Toolbar\nManager"
-__doc__   = """Version = 0.1
+title = "Toolbar\nManager"
+doc = """Version = 0.1
 Date    = 15.08.2026
-________________________________________________________________
+
 Description:
 Reorder, rename, move, and delete existing pyRevit panels/buttons/
 stacks/pulldowns within this extension, without touching folders by hand.
 
-________________________________________________________________
 How-To:
-- Click to open the manager window (stays open while you work in Revit)
-- Select an item in the tree on the left
-- Rename / reorder / move to another panel or tab / delete from the panel on the right
-- Click "Reload pyRevit" when you're done to see changes on the ribbon
+1. Click to open the manager window (stays open while you work in Revit).
+2. Select an item in the tree on the left.
+3. Rename / reorder / move to another panel or tab / delete from the panel on the right.
+4. Click "Reload pyRevit" when done to see changes on the ribbon.
 
-________________________________________________________________
+To-Do:
+[FEATURE] - Maintain and extend as needed.
+
 Last Updates:
-- [15.08.2026] v0.1 - Initial version: scan, reorder, rename, move, delete
-________________________________________________________________
-Author: (adapted from Erik Frits' pyRevit Buttons Generator)"""
+- [15.08.2026] v0.1 Initial version: scan, reorder, rename, move, delete.
+
+Author: PrasKaa"""
 
 __persistentengine__ = True
 

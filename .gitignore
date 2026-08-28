@@ -10,3 +10,7 @@ _settings.json
 .idea/
 Thumbs.db
 Desktop.ini
+
+# FGD -> PyPrasKaa sync tooling
+tools/fgd-sync/sync-config.json
+tools/fgd-sync/sync.log
