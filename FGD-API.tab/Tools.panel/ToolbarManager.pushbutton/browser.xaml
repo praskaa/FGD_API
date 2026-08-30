@@ -303,7 +303,13 @@
                                    Foreground="{DynamicResource TextBrush}"
                                    TextWrapping="Wrap"
                                    FontSize="12"
-                                   Margin="0,0,0,14"/>
+                                   Margin="0,0,0,10"/>
+
+                        <Button x:Name="btn_OpenExplorer" Content="&#x1F4C2; Open in Explorer"
+                                Style="{StaticResource ToolButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="False"
+                                Margin="0,0,0,14"/>
 
                         <!-- ================= ADD NEW (contextual) ================= -->
                         <StackPanel x:Name="sp_AddNewSection" Visibility="Collapsed" Margin="0,0,0,16">
@@ -369,6 +375,8 @@
                                       Content="Put in panel's slide-out (overflow)"
                                       Foreground="{DynamicResource TextBrush}"
                                       FontSize="11"
+                                      IsEnabled="False"
+                                      ToolTip="Temporarily disabled — this was messing up existing layouts."
                                       Margin="0,0,0,14"/>
 
                             <TextBlock Text="MOVE TO PANEL / TAB" FontSize="10" FontWeight="SemiBold"

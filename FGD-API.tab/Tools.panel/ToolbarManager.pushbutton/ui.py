@@ -142,6 +142,7 @@ class BrowserWindow(Window):
         self.tv_Tree.SelectedItemChanged += self._on_tree_selection_changed
         self.tb_Search.TextChanged    += self._on_search_changed
 
+        self.btn_OpenExplorer.Click += self._on_open_explorer_click
         self.btn_Rename.Click  += self._on_rename_click
         self.btn_MoveUp.Click  += lambda s, a: self._on_reorder_click(-1)
         self.btn_MoveDown.Click += lambda s, a: self._on_reorder_click(1)
@@ -325,9 +326,11 @@ class BrowserWindow(Window):
         self._selected_node = node
         if node is None:
             self.tb_SelectedPath.Text = 'Nothing selected'
+            self.btn_OpenExplorer.IsEnabled = False
             self._set_actions_enabled(False)
             return
 
+        self.btn_OpenExplorer.IsEnabled = True
         self.tb_SelectedPath.Text = u'{}\n{}'.format(node.display_name, node.path)
         self.tb_RenameInput.Text = node.display_name
         manageable = node.kind in core.MANAGEABLE_KINDS
@@ -337,15 +340,12 @@ class BrowserWindow(Window):
         self.sp_ExistingActions.Visibility = Visibility.Visible if manageable else Visibility.Collapsed
         self._set_actions_enabled(manageable)
 
-        # Slide-out checkbox reflects current placement; only meaningful
-        # when the item actually has a parent panel/container.
+        # Slide-out feature is temporarily disabled (was corrupting existing
+        # layouts on write) — keep it visibly off regardless of selection,
+        # don't reflect on-disk state here anymore.
         self._suppress_slideout_event = True
-        if manageable and node.parent is not None:
-            self.cb_Slideout.IsEnabled = True
-            self.cb_Slideout.IsChecked = core.get_slideout_state(node.parent, core.strip_suffix(node.name))
-        else:
-            self.cb_Slideout.IsEnabled = False
-            self.cb_Slideout.IsChecked = False
+        self.cb_Slideout.IsEnabled = False
+        self.cb_Slideout.IsChecked = False
         self._suppress_slideout_event = False
 
         # Contextual "Add New" section — only for containers.
@@ -436,6 +436,22 @@ class BrowserWindow(Window):
         return u' / '.join(reversed(parts))
 
     # ---- actions -------------------------------------------------------
+    def _on_open_explorer_click(self, sender, args):
+        node = self._selected_node
+        if node is None:
+            return
+        if not os.path.exists(node.path):
+            self._set_status(u'Folder no longer exists: {}'.format(node.path), error=True)
+            return
+        try:
+            # os.startfile opens the folder directly in Windows Explorer.
+            # Works for any bundle kind (panel/pushbutton/stack/...) since
+            # they're all just folders on disk.
+            os.startfile(node.path)
+            self._set_status(u'Opened "{}" in Explorer.'.format(node.display_name))
+        except Exception as e:
+            self._set_status(u'Could not open Explorer: {}'.format(str(e)), error=True)
+
     def _on_rename_click(self, sender, args):
         if self._selected_node is None:
             return
@@ -478,7 +494,8 @@ class BrowserWindow(Window):
         self._reload_tree()
 
     def _on_slideout_changed(self, sender, args):
-        if self._suppress_slideout_event:
+        # Feature temporarily disabled — see _on_tree_selection_changed.
+        if self._suppress_slideout_event or not self.cb_Slideout.IsEnabled:
             return
         node = self._selected_node
         if node is None or node.parent is None:

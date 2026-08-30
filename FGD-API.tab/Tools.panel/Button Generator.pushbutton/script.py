@@ -708,7 +708,7 @@ for item in form.results:
 #5️⃣ Report
 output = script.get_output()
 output.close_others()
-output.print_md('### PrasKaa Generator Report')
+output.print_md('### Generator Report')
 for line in log:
     print(line)
 
