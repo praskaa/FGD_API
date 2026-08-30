@@ -243,6 +243,30 @@ class BrowserWindow(Window):
 
         return panel
 
+    def _migrate_collapsed_path(self, old_path, new_path):
+        """Keep collapse/expand state attached to the right node when a
+        rename or move changes node.path — otherwise the old path just
+        leaks in _collapsed_paths forever and the node silently reverts to
+        expanded (or a totally different node inherits a stale collapse)."""
+        if old_path == new_path:
+            return
+        migrated = set()
+        prefix = old_path + os.sep
+        for p in self._collapsed_paths:
+            if p == old_path:
+                migrated.add(new_path)
+            elif p.startswith(prefix):
+                migrated.add(new_path + p[len(old_path):])
+            else:
+                migrated.add(p)
+        self._collapsed_paths = migrated
+
+    def _collect_subtree_paths(self, node):
+        paths = {node.path}
+        for c in node.children:
+            paths |= self._collect_subtree_paths(c)
+        return paths
+
     def _reselect_by_path(self, path):
         def walk(items, ancestors):
             for item in items:
@@ -380,16 +404,25 @@ class BrowserWindow(Window):
     def _populate_move_targets(self):
         self.cb_MoveTarget.Items.Clear()
 
-        def walk(node):
+        # Exclude the selected node and everything under it — moving a
+        # container into itself or into its own descendant crashes
+        # shutil.move() with an uncaught error, not a friendly core.OpError.
+        excluded = (self._collect_subtree_paths(self._selected_node)
+                    if self._selected_node is not None else set())
+
+        def walk(node, depth=0):
             if node.kind in core.CONTAINER_KINDS:
+                if node.path in excluded:
+                    return
                 full = node.kind == core.KIND_STACK and len(node.children) >= core.STACK_MAX_CHILDREN
                 cbi = ComboBoxItem()
-                cbi.Content = self._path_label(node) + (u'  (full)' if full else u'')
+                indent = u'\u2007\u2007' * depth  # figure-space indent so nesting is visible
+                cbi.Content = indent + self._path_label(node) + (u'  (full)' if full else u'')
                 cbi.Tag = node
                 cbi.IsEnabled = not full
                 self.cb_MoveTarget.Items.Add(cbi)
             for child in node.children:
-                walk(child)
+                walk(child, depth + 1)
 
         for tab_node in self._tabs:
             walk(tab_node)
@@ -407,12 +440,14 @@ class BrowserWindow(Window):
         if self._selected_node is None:
             return
         new_name = self.tb_RenameInput.Text
+        old_path = self._selected_node.path
         try:
             core.rename_bundle(self._selected_node, new_name)
             self._set_status(u'Renamed to "{}".'.format(new_name))
         except core.OpError as e:
             self._set_status(u'Rename failed: {}'.format(str(e)), error=True)
             return
+        self._migrate_collapsed_path(old_path, self._selected_node.path)
         self._reload_tree()
 
     def _on_reorder_click(self, direction):
@@ -432,12 +467,14 @@ class BrowserWindow(Window):
         if node is None or target_item is None:
             return
         target_node = target_item.Tag
+        old_path = node.path
         try:
             core.move_bundle(node, target_node)
             self._set_status(u'Moved "{}" to "{}".'.format(node.display_name, target_node.display_name))
         except core.OpError as e:
             self._set_status(u'Move failed: {}'.format(str(e)), error=True)
             return
+        self._migrate_collapsed_path(old_path, node.path)
         self._reload_tree()
 
     def _on_slideout_changed(self, sender, args):
