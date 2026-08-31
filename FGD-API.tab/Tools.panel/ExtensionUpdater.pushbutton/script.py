@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 title = "Extension\nUpdater"
-doc = """Version = 1.3
+doc = """Version = 1.4
 Date    = 31.08.2026
 
 Description:
@@ -13,7 +13,12 @@ How-To:
 2. Confirm the action.
 3. Script will backup, clean, download, restore Sandbox, and reload.
 
+Setup (optional, for higher rate limit):
+Create github_config.json (see CONFIG_PATH in script) with:
+{"github_token_read": "ghp_xxxxxxxxxxxx"}
+
 Last Updates:
+- [31.08.2026] v1.4 Added GitHub token auth support to avoid rate limits.
 - [31.08.2026] v1.3 Clean local files before download for fresh state.
 - [31.08.2026] v1.2 Adopted proven HTTP approach from Sync with GitHub script.
 - [31.08.2026] v1.1 Switched to GitHub REST API.
@@ -46,6 +51,21 @@ REPO_OWNER = "praskaa"
 REPO_NAME  = "FGD_API"
 BRANCH     = "main"
 API_BASE   = "https://api.github.com"
+CONFIG_PATH = r"C:\Users\prasetyok\Documents\Github\github_config.json"
+
+
+def load_github_token():
+    """Load GitHub token from config file (optional but recommended)."""
+    if os.path.isfile(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                cfg = json.load(f)
+            token = cfg.get("github_token_read", "").strip()
+            if token:
+                return token
+        except Exception:
+            pass
+    return None
 
 
 def get_extension_root():
@@ -117,13 +137,15 @@ def clean_local_files(repo_path):
                 os.remove(item_path)
 
 
-def api_request(method, endpoint, body=None):
-    """Make a GitHub API request (public repos don't need auth)."""
+def api_request(method, endpoint, token, body=None):
+    """Make a GitHub API request. Token is optional but recommended (higher rate limit)."""
     url = "{}/{}".format(API_BASE, endpoint.lstrip("/"))
     req = HttpWebRequest.Create(url)
     req.Method = method
     req.ContentType = "application/json"
     req.Accept = "application/vnd.github+json"
+    if token:
+        req.Headers.Add("Authorization", "Bearer {}".format(token))
     req.Headers.Add("X-GitHub-Api-Version", "2022-11-28")
     req.UserAgent = "FGD-API-Updater-pyRevit"
 
@@ -149,22 +171,22 @@ def api_request(method, endpoint, body=None):
     return json.loads(raw)
 
 
-def get_file_list(owner, repo, branch):
+def get_file_list(owner, repo, branch, token):
     """Get recursive file tree from GitHub."""
-    ref_data = api_request("GET", "repos/{}/{}/git/ref/heads/{}".format(owner, repo, branch))
+    ref_data = api_request("GET", "repos/{}/{}/git/ref/heads/{}".format(owner, repo, branch), token)
     head_sha = ref_data["object"]["sha"]
 
-    commit_data = api_request("GET", "repos/{}/{}/git/commits/{}".format(owner, repo, head_sha))
+    commit_data = api_request("GET", "repos/{}/{}/git/commits/{}".format(owner, repo, head_sha), token)
     tree_sha = commit_data["tree"]["sha"]
 
-    tree_data = api_request("GET", "repos/{}/{}/git/trees/{}?recursive=1".format(owner, repo, tree_sha))
+    tree_data = api_request("GET", "repos/{}/{}/git/trees/{}?recursive=1".format(owner, repo, tree_sha), token)
     file_items = [item for item in tree_data.get("tree", []) if item.get("type") == "blob"]
     return file_items, head_sha
 
 
-def download_blob(owner, repo, blob_sha):
+def download_blob(owner, repo, blob_sha, token):
     """Download and decode a single blob from GitHub."""
-    data = api_request("GET", "repos/{}/{}/git/blobs/{}".format(owner, repo, blob_sha))
+    data = api_request("GET", "repos/{}/{}/git/blobs/{}".format(owner, repo, blob_sha), token)
     content = data.get("content", "").replace("\n", "")
     if data.get("encoding", "base64") == "base64":
         return base64.b64decode(content)
@@ -177,9 +199,14 @@ def main():
     output.set_width(600)
 
     repo_path = get_extension_root()
+    token = load_github_token()
 
     output.print_md('## FGD_API Extension Updater')
     output.print_md('**Extension path:** `{}`'.format(repo_path))
+    if token:
+        output.print_md('**Auth:** Token loaded (higher rate limit)')
+    else:
+        output.print_md('**Auth:** No token (60 req/hr limit). Add `github_token_read` to config for higher limit.')
     output.print_md('---')
 
     confirm = forms.alert(
@@ -237,11 +264,19 @@ def main():
         # Step 4: Fetch file list from GitHub
         output.print_md('### Fetching file list from GitHub...')
         try:
-            file_items, commit_sha = get_file_list(REPO_OWNER, REPO_NAME, BRANCH)
+            file_items, commit_sha = get_file_list(REPO_OWNER, REPO_NAME, BRANCH, token)
             output.print_md('  [OK] Found **{}** files (commit `{}`)'.format(len(file_items), commit_sha[:7]))
         except Exception as e:
+            error_str = str(e)
             output.print_md('  [FAIL] Could not fetch file list:')
-            output.print_md('```\n{}\n```'.format(str(e)))
+            output.print_md('```\n{}\n```'.format(error_str))
+            if 'rate limit' in error_str.lower():
+                output.print_md('')
+                output.print_md('  **Rate limit exceeded!** Create a GitHub token:')
+                output.print_md('  1. Go to https://github.com/settings/tokens')
+                output.print_md('  2. Generate a token (no scopes needed for public repos)')
+                output.print_md('  3. Save to `{}`:'.format(CONFIG_PATH))
+                output.print_md('     ```json\n     {"github_token_read": "ghp_xxxx"}\n     ```')
             raise RuntimeError('Failed to fetch file list from GitHub')
 
         # Step 5: Download and write files
@@ -258,7 +293,7 @@ def main():
             try:
                 if not os.path.isdir(abs_dir):
                     os.makedirs(abs_dir)
-                raw_bytes = download_blob(REPO_OWNER, REPO_NAME, blob_sha)
+                raw_bytes = download_blob(REPO_OWNER, REPO_NAME, blob_sha, token)
                 with open(abs_path, "wb") as f:
                     f.write(raw_bytes)
                 success_count += 1
