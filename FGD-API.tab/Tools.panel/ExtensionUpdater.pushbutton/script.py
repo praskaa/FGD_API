@@ -32,6 +32,29 @@ REPO_URL = "https://github.com/praskaa/FGD_API"
 GIT_PULL_TIMEOUT = 120
 
 
+def find_git():
+    """Locate git.exe: check PATH first, then common Windows install locations."""
+    # Check PATH
+    for path_dir in os.environ.get('PATH', '').split(os.pathsep):
+        git_exe = os.path.join(path_dir, 'git.exe')
+        if os.path.isfile(git_exe):
+            return 'git'
+    # Common Windows install locations
+    candidates = [
+        r'C:\Program Files\Git\bin\git.exe',
+        r'C:\Program Files (x86)\Git\bin\git.exe',
+        r'C:\Users\{}\AppData\Local\GitHub\PortableGit*\cmd\git.exe'.format(
+            os.environ.get('USERNAME', '')),
+        r'C:\ProgramData\GitHub\PortableGit*\cmd\git.exe',
+    ]
+    import glob
+    for pattern in candidates:
+        matches = glob.glob(pattern)
+        if matches:
+            return matches[0]
+    return None
+
+
 def get_extension_root():
     path_script = os.path.abspath(__file__)
     path_pushbutton = os.path.dirname(path_script)
@@ -89,12 +112,19 @@ def restore_folders(repo_path, preserved, temp_dir):
 
 
 def run_git_pull(repo_path):
+    git_exe = find_git()
+    if not git_exe:
+        return False, '', (
+            'git.exe not found.\n\n'
+            'Please install Git for Windows from https://git-scm.com/download/win\n'
+            'or make sure git is in your system PATH.'
+        )
     branches = ['main', 'master']
     last_error = None
     for branch in branches:
         try:
             proc = subprocess.Popen(
-                ['git', '-C', repo_path, 'pull', 'origin', branch],
+                [git_exe, '-C', repo_path, 'pull', 'origin', branch],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 shell=False
