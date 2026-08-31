@@ -148,9 +148,7 @@ def main():
         'Continue?',
         title='Extension Updater',
         yes=True,
-        no=True,
-        ok_string='Update',
-        cancel_string='Cancel'
+        no=True
     )
 
     if not confirm:
@@ -172,9 +170,7 @@ def main():
                 'Backup failed:\n{}\n\nContinue without backup?'.format(e),
                 title='Backup Warning',
                 yes=True,
-                no=True,
-                ok_string='Continue',
-                cancel_string='Abort'
+                no=True
             )
             if not cont:
                 script.exit()
