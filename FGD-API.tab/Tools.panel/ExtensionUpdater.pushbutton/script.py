@@ -13,9 +13,9 @@ How-To:
 2. Confirm the action.
 3. Script will backup, clean, download, restore Sandbox, and reload.
 
-Setup (optional, for higher rate limit):
-Create github_config.json (see CONFIG_PATH in script) with:
-{"github_token_read": "ghp_xxxxxxxxxxxx"}
+Setup for team distribution:
+Hardcode GITHUB_TOKEN in this script (line ~56). No external config needed.
+Generate token at: https://github.com/settings/tokens (no scopes needed for public repos)
 
 Last Updates:
 - [31.08.2026] v1.4 Added GitHub token auth support to avoid rate limits.
@@ -51,21 +51,10 @@ REPO_OWNER = "praskaa"
 REPO_NAME  = "FGD_API"
 BRANCH     = "main"
 API_BASE   = "https://api.github.com"
-CONFIG_PATH = r"C:\Users\prasetyok\Documents\Github\github_config.json"
 
-
-def load_github_token():
-    """Load GitHub token from config file (optional but recommended)."""
-    if os.path.isfile(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, "r") as f:
-                cfg = json.load(f)
-            token = cfg.get("github_token_read", "").strip()
-            if token:
-                return token
-        except Exception:
-            pass
-    return None
+# READ-ONLY token for public repo — safe to hardcode for team distribution
+# Generate at: https://github.com/settings/tokens (no scopes needed)
+GITHUB_TOKEN = "ghp_YOUR_TOKEN_HERE"  # <-- Replace with your token
 
 
 def get_extension_root():
@@ -199,14 +188,16 @@ def main():
     output.set_width(600)
 
     repo_path = get_extension_root()
-    token = load_github_token()
+    token = GITHUB_TOKEN
+    if token == "ghp_YOUR_TOKEN_HERE":
+        token = None
 
     output.print_md('## FGD_API Extension Updater')
     output.print_md('**Extension path:** `{}`'.format(repo_path))
     if token:
-        output.print_md('**Auth:** Token loaded (higher rate limit)')
+        output.print_md('**Auth:** Token active (5000 req/hr)')
     else:
-        output.print_md('**Auth:** No token (60 req/hr limit). Add `github_token_read` to config for higher limit.')
+        output.print_md('**Auth:** No token set (60 req/hr limit). Edit GITHUB_TOKEN in script.')
     output.print_md('---')
 
     confirm = forms.alert(
