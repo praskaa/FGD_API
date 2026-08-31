@@ -1,25 +1,23 @@
 # -*- coding: utf-8 -*-
 title = "Extension\nUpdater"
-doc = """Version = 1.5
+doc = """Version = 1.6
 Date    = 31.08.2026
 
 Description:
 Update FGD_API extension from GitHub via REST API (no git required).
 Deletes all local files except Sandbox.panel, then downloads fresh copy.
 lib/ folder is overwritten by the remote version.
+GitHub token is prompted at runtime and used only for this run — never
+saved to disk, never hardcoded.
 
 How-To:
 1. Click to run the updater.
-2. Confirm the action.
-3. Script will backup, clean, download, restore Sandbox, and reload.
-
-Setup for team distribution:
-Set GITHUB_TOKEN below. No external config needed.
-Generate token at: https://github.com/settings/tokens (no scopes needed for public repos)
+2. Paste a token if you want higher rate limit, or leave empty.
+3. Confirm the action.
+4. Script will backup, clean, download, restore Sandbox, and reload.
 
 Last Updates:
-- [31.08.2026] v1.5 Hardcoded token for team distribution.
-- [31.08.2026] v1.4 Added GitHub token auth support to avoid rate limits.
+- [31.08.2026] v1.6 Token is prompted at runtime instead of hardcoded — never persisted.
 - [31.08.2026] v1.3 Clean local files before download for fresh state.
 - [31.08.2026] v1.2 Adopted proven HTTP approach from Sync with GitHub script.
 - [31.08.2026] v1.1 Switched to GitHub REST API.
@@ -53,9 +51,21 @@ REPO_NAME  = "FGD_API"
 BRANCH     = "main"
 API_BASE   = "https://api.github.com"
 
-# READ-ONLY token for public repo — safe to hardcode for team distribution
-# Generate at: https://github.com/settings/tokens (no scopes needed)
-GITHUB_TOKEN = ""  # <-- Set your token here (leave empty for anonymous, 60 req/hr limit)
+
+def prompt_for_token():
+    """Ask for a GitHub token at runtime only — never written to disk,
+    never hardcoded. Empty input = anonymous (60 req/hr limit)."""
+    token = forms.ask_for_string(
+        default="",
+        prompt="Paste a GitHub token for higher rate limit (5000/hr),\n"
+               "or leave empty to continue anonymously (60/hr).\n\n"
+               "Token is used only for this run — it is not saved anywhere.",
+        title="GitHub Token (optional)"
+    )
+    if token is None:
+        # user cancelled the dialog entirely
+        script.exit()
+    return token.strip() if token else None
 
 
 def get_extension_root():
@@ -101,10 +111,9 @@ def restore_sandbox(repo_path, sandbox_temp, temp_dir):
 
 
 def clean_local_files(repo_path):
-    """Delete ALL local files/folders except Sandbox.panel and lib/.
-    lib/ will be overwritten during download (no need to preserve)."""
-    tab_dir = os.path.join(repo_path, 'FGD-API.tab')
-    sandbox_name = 'Sandbox.panel'
+    """Delete ALL local files/folders except Sandbox.panel (already moved
+    out to temp by this point) and lib/. lib/ will be overwritten during
+    download (no need to preserve)."""
     for item in os.listdir(repo_path):
         if item == 'lib':
             continue  # lib/ gets overwritten, no need to delete
@@ -115,16 +124,6 @@ def clean_local_files(repo_path):
             shutil.rmtree(item_path)
         else:
             os.remove(item_path)
-    # Also clean inside FGD-API.tab except Sandbox.panel
-    if os.path.isdir(tab_dir):
-        for item in os.listdir(tab_dir):
-            if item == sandbox_name:
-                continue
-            item_path = os.path.join(tab_dir, item)
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-            else:
-                os.remove(item_path)
 
 
 def api_request(method, endpoint, token, body=None):
@@ -189,14 +188,17 @@ def main():
     output.set_width(600)
 
     repo_path = get_extension_root()
-    token = GITHUB_TOKEN if GITHUB_TOKEN else None
+
+    # Token is asked for right here, at run time — held only in this local
+    # variable for the duration of the script, then discarded when it exits.
+    token = prompt_for_token()
 
     output.print_md('## FGD_API Extension Updater')
     output.print_md('**Extension path:** `{}`'.format(repo_path))
     if token:
-        output.print_md('**Auth:** Token active (5000 req/hr)')
+        output.print_md('**Auth:** Token provided for this run (5000 req/hr)')
     else:
-        output.print_md('**Auth:** No token set (60 req/hr limit). Set GITHUB_TOKEN in script for higher limit.')
+        output.print_md('**Auth:** Anonymous (60 req/hr limit)')
     output.print_md('---')
 
     confirm = forms.alert(
@@ -265,7 +267,7 @@ def main():
                 output.print_md('  **Rate limit exceeded!** To fix:')
                 output.print_md('  1. Go to https://github.com/settings/tokens')
                 output.print_md('  2. Generate a token (no scopes needed for public repos)')
-                output.print_md('  3. Set GITHUB_TOKEN in this script')
+                output.print_md('  3. Paste it when this script asks for one')
             raise RuntimeError('Failed to fetch file list from GitHub')
 
         # Step 5: Download and write files
