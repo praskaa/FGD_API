@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 title = "Extension\nUpdater"
-doc = """Version = 1.1
+doc = """Version = 1.2
 Date    = 31.08.2026
 
 Description:
@@ -13,7 +13,8 @@ How-To:
 3. Script will backup, download, restore protected folders, and reload.
 
 Last Updates:
-- [31.08.2026] v1.1 Switched to GitHub REST API (no git dependency).
+- [31.08.2026] v1.2 Adopted proven HTTP approach from Sync with GitHub script.
+- [31.08.2026] v1.1 Switched to GitHub REST API.
 - [31.08.2026] v1.0 Initial release.
 
 Author: PrasKaa"""
@@ -25,9 +26,15 @@ import shutil
 import tempfile
 import datetime
 
-from System.Net import HttpWebRequest, WebException
+import clr
+clr.AddReference("System")
+clr.AddReference("System.Net")
+
+from System.Net import HttpWebRequest, WebException, ServicePointManager, SecurityProtocolType
 from System.Text import Encoding
 from System.IO import StreamReader
+
+ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
 
 from pyrevit import forms, script
 from pyrevit.loader import sessionmgr
@@ -75,7 +82,7 @@ def preserve_folders(repo_path, temp_dir):
 
 
 def restore_folders(repo_path, preserved, temp_dir):
-    """Restore protected folders from temp, skipping if already exists from download."""
+    """Restore protected folders from temp, overwriting downloaded versions."""
     tab_dir = os.path.join(repo_path, 'FGD-API.tab')
     restored = []
     warnings = []
@@ -85,7 +92,6 @@ def restore_folders(repo_path, preserved, temp_dir):
         else:
             dest = os.path.join(repo_path, name)
         if os.path.isdir(dest):
-            # Remote repo also has this folder — keep our local version
             warnings.append('  [WARN] {} exists in both local and remote — kept local version'.format(name))
             shutil.rmtree(dest)
         shutil.move(temp_path, dest)
