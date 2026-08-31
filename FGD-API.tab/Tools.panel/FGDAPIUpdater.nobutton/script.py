@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
 title = "Extension\nUpdater"
-doc = """Version = 1.2
+doc = """Version = 1.5
 Date    = 31.08.2026
 
 Description:
 Update FGD_API extension from GitHub via REST API (no git required).
-Preserves Sandbox.panel and lib/ directory during update.
+Deletes all local files except Sandbox.panel, then downloads fresh copy.
+lib/ folder is overwritten by the remote version.
 
 How-To:
 1. Click to run the updater.
 2. Confirm the action.
-3. Script will backup, download, restore protected folders, and reload.
+3. Script will backup, clean, download, restore Sandbox, and reload.
+
+Setup for team distribution:
+Set GITHUB_TOKEN below. No external config needed.
+Generate token at: https://github.com/settings/tokens (no scopes needed for public repos)
 
 Last Updates:
+- [31.08.2026] v1.5 Hardcoded token for team distribution.
+- [31.08.2026] v1.4 Added GitHub token auth support to avoid rate limits.
+- [31.08.2026] v1.3 Clean local files before download for fresh state.
 - [31.08.2026] v1.2 Adopted proven HTTP approach from Sync with GitHub script.
 - [31.08.2026] v1.1 Switched to GitHub REST API.
 - [31.08.2026] v1.0 Initial release.
@@ -45,11 +53,15 @@ REPO_NAME  = "FGD_API"
 BRANCH     = "main"
 API_BASE   = "https://api.github.com"
 
+# READ-ONLY token for public repo — safe to hardcode for team distribution
+# Generate at: https://github.com/settings/tokens (no scopes needed)
+GITHUB_TOKEN = ""  # <-- Set your token here (leave empty for anonymous, 60 req/hr limit)
+
 
 def get_extension_root():
     path_script = os.path.abspath(__file__)
-    path_pushbutton = os.path.dirname(path_script)
-    path_panel = os.path.dirname(path_pushbutton)
+    path_nobuton = os.path.dirname(path_script)
+    path_panel = os.path.dirname(path_nobuton)
     path_tab = os.path.dirname(path_panel)
     path_root = os.path.dirname(path_tab)
     return path_root
@@ -64,48 +76,66 @@ def create_backup(repo_path, backup_dir):
     return backup_path + '.zip'
 
 
-def preserve_folders(repo_path, temp_dir):
-    """Move protected folders to temp before download."""
+def preserve_sandbox(repo_path, temp_dir):
+    """Move Sandbox.panel to temp before clean+download. lib/ is NOT preserved
+    — it gets overwritten by the remote version."""
     tab_dir = os.path.join(repo_path, 'FGD-API.tab')
     sandbox_path = os.path.join(tab_dir, 'Sandbox.panel')
-    lib_path = os.path.join(repo_path, 'lib')
-    preserved = {}
     if os.path.isdir(sandbox_path):
         dest = os.path.join(temp_dir, 'Sandbox.panel')
         shutil.move(sandbox_path, dest)
-        preserved['Sandbox.panel'] = dest
-    if os.path.isdir(lib_path):
-        dest = os.path.join(temp_dir, 'lib')
-        shutil.move(lib_path, dest)
-        preserved['lib'] = dest
-    return preserved
+        return dest
+    return None
 
 
-def restore_folders(repo_path, preserved, temp_dir):
-    """Restore protected folders from temp, overwriting downloaded versions."""
+def restore_sandbox(repo_path, sandbox_temp, temp_dir):
+    """Restore Sandbox.panel from temp, overwriting any downloaded version."""
+    if not sandbox_temp:
+        return False
     tab_dir = os.path.join(repo_path, 'FGD-API.tab')
-    restored = []
-    warnings = []
-    for name, temp_path in preserved.items():
-        if name == 'Sandbox.panel':
-            dest = os.path.join(tab_dir, 'Sandbox.panel')
+    dest = os.path.join(tab_dir, 'Sandbox.panel')
+    if os.path.isdir(dest):
+        shutil.rmtree(dest)
+    shutil.move(sandbox_temp, dest)
+    return True
+
+
+def clean_local_files(repo_path):
+    """Delete ALL local files/folders except Sandbox.panel and lib/.
+    lib/ will be overwritten during download (no need to preserve)."""
+    tab_dir = os.path.join(repo_path, 'FGD-API.tab')
+    sandbox_name = 'Sandbox.panel'
+    for item in os.listdir(repo_path):
+        if item == 'lib':
+            continue  # lib/ gets overwritten, no need to delete
+        if item == '.git':
+            continue  # keep .git if exists
+        item_path = os.path.join(repo_path, item)
+        if os.path.isdir(item_path):
+            shutil.rmtree(item_path)
         else:
-            dest = os.path.join(repo_path, name)
-        if os.path.isdir(dest):
-            warnings.append('  [WARN] {} exists in both local and remote — kept local version'.format(name))
-            shutil.rmtree(dest)
-        shutil.move(temp_path, dest)
-        restored.append(name)
-    return restored, warnings
+            os.remove(item_path)
+    # Also clean inside FGD-API.tab except Sandbox.panel
+    if os.path.isdir(tab_dir):
+        for item in os.listdir(tab_dir):
+            if item == sandbox_name:
+                continue
+            item_path = os.path.join(tab_dir, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
 
 
-def api_request(method, endpoint, body=None):
-    """Make a GitHub API request (public repos don't need auth)."""
+def api_request(method, endpoint, token, body=None):
+    """Make a GitHub API request. Token is optional but recommended (higher rate limit)."""
     url = "{}/{}".format(API_BASE, endpoint.lstrip("/"))
     req = HttpWebRequest.Create(url)
     req.Method = method
     req.ContentType = "application/json"
     req.Accept = "application/vnd.github+json"
+    if token:
+        req.Headers.Add("Authorization", "Bearer {}".format(token))
     req.Headers.Add("X-GitHub-Api-Version", "2022-11-28")
     req.UserAgent = "FGD-API-Updater-pyRevit"
 
@@ -131,22 +161,22 @@ def api_request(method, endpoint, body=None):
     return json.loads(raw)
 
 
-def get_file_list(owner, repo, branch):
+def get_file_list(owner, repo, branch, token):
     """Get recursive file tree from GitHub."""
-    ref_data = api_request("GET", "repos/{}/{}/git/ref/heads/{}".format(owner, repo, branch))
+    ref_data = api_request("GET", "repos/{}/{}/git/ref/heads/{}".format(owner, repo, branch), token)
     head_sha = ref_data["object"]["sha"]
 
-    commit_data = api_request("GET", "repos/{}/{}/git/commits/{}".format(owner, repo, head_sha))
+    commit_data = api_request("GET", "repos/{}/{}/git/commits/{}".format(owner, repo, head_sha), token)
     tree_sha = commit_data["tree"]["sha"]
 
-    tree_data = api_request("GET", "repos/{}/{}/git/trees/{}?recursive=1".format(owner, repo, tree_sha))
+    tree_data = api_request("GET", "repos/{}/{}/git/trees/{}?recursive=1".format(owner, repo, tree_sha), token)
     file_items = [item for item in tree_data.get("tree", []) if item.get("type") == "blob"]
     return file_items, head_sha
 
 
-def download_blob(owner, repo, blob_sha):
+def download_blob(owner, repo, blob_sha, token):
     """Download and decode a single blob from GitHub."""
-    data = api_request("GET", "repos/{}/{}/git/blobs/{}".format(owner, repo, blob_sha))
+    data = api_request("GET", "repos/{}/{}/git/blobs/{}".format(owner, repo, blob_sha), token)
     content = data.get("content", "").replace("\n", "")
     if data.get("encoding", "base64") == "base64":
         return base64.b64decode(content)
@@ -159,19 +189,25 @@ def main():
     output.set_width(600)
 
     repo_path = get_extension_root()
+    token = GITHUB_TOKEN if GITHUB_TOKEN else None
 
     output.print_md('## FGD_API Extension Updater')
     output.print_md('**Extension path:** `{}`'.format(repo_path))
+    if token:
+        output.print_md('**Auth:** Token active (5000 req/hr)')
+    else:
+        output.print_md('**Auth:** No token set (60 req/hr limit). Set GITHUB_TOKEN in script for higher limit.')
     output.print_md('---')
 
     confirm = forms.alert(
         'This will update the FGD_API extension from GitHub.\n\n'
         'Process:\n'
         '1. Create a backup (zip)\n'
-        '2. Preserve Sandbox.panel and lib/\n'
-        '3. Download latest files from GitHub\n'
-        '4. Restore protected folders\n'
-        '5. Reload pyRevit\n\n'
+        '2. Preserve Sandbox.panel (lib/ will be overwritten)\n'
+        '3. Delete all other local files\n'
+        '4. Download latest files from GitHub\n'
+        '5. Restore Sandbox.panel\n'
+        '6. Reload pyRevit\n\n'
         'Continue?',
         title='Extension Updater',
         yes=True,
@@ -182,7 +218,7 @@ def main():
 
     temp_dir = tempfile.mkdtemp(prefix='fgd_update_')
     backup_path = None
-    preserved = {}
+    sandbox_temp = None
     warnings = []
 
     try:
@@ -202,26 +238,37 @@ def main():
             if not cont:
                 script.exit()
 
-        # Step 2: Preserve protected folders
-        output.print_md('### Preserving protected folders...')
-        preserved = preserve_folders(repo_path, temp_dir)
-        if preserved:
-            for name in preserved:
-                output.print_md('  [OK] Preserved: {}'.format(name))
+        # Step 2: Preserve Sandbox.panel only
+        output.print_md('### Preserving Sandbox.panel...')
+        sandbox_temp = preserve_sandbox(repo_path, temp_dir)
+        if sandbox_temp:
+            output.print_md('  [OK] Preserved: Sandbox.panel')
         else:
-            output.print_md('  [INFO] No protected folders found (Sandbox.panel / lib/)')
+            output.print_md('  [INFO] No Sandbox.panel found — nothing to preserve')
 
-        # Step 3: Fetch file list from GitHub
+        # Step 3: Clean all local files (except lib/ which gets overwritten)
+        output.print_md('### Cleaning local files...')
+        clean_local_files(repo_path)
+        output.print_md('  [OK] Local files cleaned')
+
+        # Step 4: Fetch file list from GitHub
         output.print_md('### Fetching file list from GitHub...')
         try:
-            file_items, commit_sha = get_file_list(REPO_OWNER, REPO_NAME, BRANCH)
+            file_items, commit_sha = get_file_list(REPO_OWNER, REPO_NAME, BRANCH, token)
             output.print_md('  [OK] Found **{}** files (commit `{}`)'.format(len(file_items), commit_sha[:7]))
         except Exception as e:
+            error_str = str(e)
             output.print_md('  [FAIL] Could not fetch file list:')
-            output.print_md('```\n{}\n```'.format(str(e)))
+            output.print_md('```\n{}\n```'.format(error_str))
+            if 'rate limit' in error_str.lower():
+                output.print_md('')
+                output.print_md('  **Rate limit exceeded!** To fix:')
+                output.print_md('  1. Go to https://github.com/settings/tokens')
+                output.print_md('  2. Generate a token (no scopes needed for public repos)')
+                output.print_md('  3. Set GITHUB_TOKEN in this script')
             raise RuntimeError('Failed to fetch file list from GitHub')
 
-        # Step 4: Download and write files
+        # Step 5: Download and write files
         output.print_md('### Downloading and writing files...')
         success_count = 0
         failed_files = []
@@ -235,7 +282,7 @@ def main():
             try:
                 if not os.path.isdir(abs_dir):
                     os.makedirs(abs_dir)
-                raw_bytes = download_blob(REPO_OWNER, REPO_NAME, blob_sha)
+                raw_bytes = download_blob(REPO_OWNER, REPO_NAME, blob_sha, token)
                 with open(abs_path, "wb") as f:
                     f.write(raw_bytes)
                 success_count += 1
@@ -252,12 +299,11 @@ def main():
         else:
             output.print_md('  [OK] All {} files written.'.format(success_count))
 
-        # Step 5: Restore protected folders
-        output.print_md('### Restoring protected folders...')
-        restored, warnings = restore_folders(repo_path, preserved, temp_dir)
+        # Step 6: Restore Sandbox.panel
+        output.print_md('### Restoring Sandbox.panel...')
+        restored = restore_sandbox(repo_path, sandbox_temp, temp_dir)
         if restored:
-            for name in restored:
-                output.print_md('  [OK] Restored: {}'.format(name))
+            output.print_md('  [OK] Restored: Sandbox.panel')
         else:
             output.print_md('  [INFO] Nothing to restore.')
 
@@ -276,30 +322,30 @@ def main():
         sessionmgr.reload_pyrevit()
 
     except RuntimeError:
-        if preserved:
-            output.print_md('### Restoring protected folders after failure...')
+        if sandbox_temp:
+            output.print_md('### Restoring Sandbox.panel after failure...')
             try:
-                restore_folders(repo_path, preserved, temp_dir)
-                output.print_md('  [OK] Restored preserved folders.')
+                restore_sandbox(repo_path, sandbox_temp, temp_dir)
+                output.print_md('  [OK] Restored Sandbox.panel.')
             except Exception as e:
                 output.print_md('  [ERR] Could not restore: {}'.format(e))
                 output.print_md('  Temp folder: `{}`'.format(temp_dir))
         forms.alert(
-            'Update failed. Your files are safe — preserved folders have been restored.\n\n'
+            'Update failed. Your files are safe — Sandbox.panel has been restored.\n\n'
             'Backup: {}'.format(backup_path or 'N/A'),
             title='Update Failed'
         )
     except Exception as e:
-        if preserved:
-            output.print_md('### Restoring protected folders after error...')
+        if sandbox_temp:
+            output.print_md('### Restoring Sandbox.panel after error...')
             try:
-                restore_folders(repo_path, preserved, temp_dir)
-                output.print_md('  [OK] Restored preserved folders.')
+                restore_sandbox(repo_path, sandbox_temp, temp_dir)
+                output.print_md('  [OK] Restored Sandbox.panel.')
             except Exception as re:
                 output.print_md('  [ERR] Could not restore: {}'.format(re))
                 output.print_md('  Temp folder: `{}`'.format(temp_dir))
         forms.alert(
-            'Unexpected error: {}\n\nPreserved folders restored.'.format(e),
+            'Unexpected error: {}\n\nSandbox.panel restored.'.format(e),
             title='Update Error'
         )
     finally:
