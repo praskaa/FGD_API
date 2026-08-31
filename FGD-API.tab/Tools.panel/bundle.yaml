@@ -1,1 +1,5 @@
-title: Tools
+title: "Tools"
+layout:
+  - ToolbarManager
+  - Button Generator
+  - FGDAPIUpdater
