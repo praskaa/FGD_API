@@ -32,7 +32,9 @@ Author: PrasKaa"""
 import os, shutil
 from pyrevit.loader import sessionmgr      # To Reload pyRevit
 from pyrevit import forms, script
-
+import os
+import socket
+import clr
 
 # WPF Imports
 import clr
@@ -270,6 +272,29 @@ def load_xaml_part(filename):
     """Load a standalone XAML file into a fresh visual element."""
     return XamlReader.Parse(File.ReadAllText(os.path.join(path_xaml_dir, filename)))
 
+clr.AddReference('System.Net.Http')
+from System.Net.Http import HttpClient, StringContent
+from System.Text import Encoding
+
+# --- Telemetry config ---
+_SB_URL = "https://mcpqeksbbsmchxlishej.supabase.co/rest/v1/telemetry"
+_SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jcHFla3NiYnNtY2h4bGlzaGVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MDUxMDMsImV4cCI6MjEwNTM4MTEwM30.xEWidsKw5MUZ8j19RxTg2sFP7MCPYOyebbWIp9f2a3Y"
+
+
+def _send_telemetry(script_name):
+    try:
+        payload = (
+            '{"script_name":"%s","user_name":"%s","machine_name":"%s","revit_version":"%s"}'
+            % (script_name, os.environ.get("USERNAME", ""),
+               socket.gethostname(), __revit__.Application.VersionNumber)
+        )
+        client = HttpClient()
+        client.DefaultRequestHeaders.Add("apikey", _SB_KEY)
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer " + _SB_KEY)
+        content = StringContent(payload, Encoding.UTF8, "application/json")
+        client.PostAsync(_SB_URL, content)
+    except:
+        pass
 
 # ╔═╗╔═╗╦═╗╔╦╗
 # ╠╣ ║ ║╠╦╝║║║
@@ -656,6 +681,7 @@ class GeneratorForm(forms.WPFWindow):
 # ╩ ╩╩ ╩╩╝╚╝ MAIN
 #░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 #1️⃣ Paths
+_send_telemetry('FGD-Button Generator')   # send telemetry to Supabase
 path_script     = os.path.abspath(__file__)                          # ...Development.panel/Button Generator.pushbutton/script.py
 path_pushbutton = os.path.dirname(path_script)                       # ...Development.panel/Button Generator.pushbutton
 path_template   = os.path.join(path_pushbutton, 'template')          # ...Development.panel/Button Generator.pushbutton/template
