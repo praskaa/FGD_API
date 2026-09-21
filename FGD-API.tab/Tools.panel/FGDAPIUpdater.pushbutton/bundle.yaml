@@ -1,3 +1,6 @@
-title: Extension
+title:
+  en_us: |-
+    FGD-API
+    Updater
 tooltip: Update FGD_API extension from GitHub 
 author: PrasKaa
