@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-title = "Extension\nUpdater"
+title = "FGD-API\nUpdater"
 doc = """Version = 1.6
 Date    = 31.08.2026
 
