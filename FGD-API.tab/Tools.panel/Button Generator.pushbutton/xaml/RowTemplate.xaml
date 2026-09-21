@@ -25,12 +25,13 @@
                    Visibility="Collapsed"/>
     </StackPanel>
 
-    <!-- Type badges (radio-style). Order: single buttons, then containers -->
-    <StackPanel Grid.Column="1"
-                Orientation="Horizontal"
-                VerticalAlignment="Top"
-                Margin="0,6,12,0">
-        <Border x:Name="badge_PushButton" Style="{DynamicResource BadgeUnselected}">
+    <!-- Type badges (radio-style). Order: single buttons, then containers.
+         WrapPanel (not a horizontal StackPanel) so badges overflow onto a
+         second line instead of being clipped by the fixed-width column. -->
+    <WrapPanel Grid.Column="1"
+               VerticalAlignment="Top"
+               Margin="0,6,12,0">
+        <Border x:Name="badge_PushButton" Style="{DynamicResource BadgeUnselected}" Margin="0,0,5,5">
             <Border.ToolTip>
                 <ToolTip MaxWidth="270" Placement="Bottom">
                     <StackPanel>
@@ -59,7 +60,7 @@
             </Border.ToolTip>
             <TextBlock x:Name="lbl_PushButton" Text="PushButton" Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
-        <Border x:Name="badge_Script"      Style="{DynamicResource BadgeUnselected}">
+        <Border x:Name="badge_Script"      Style="{DynamicResource BadgeUnselected}" Margin="0,0,5,5">
             <Border.ToolTip>
                 <ToolTip MaxWidth="270" Placement="Bottom">
                     <StackPanel>
@@ -86,7 +87,34 @@
             </Border.ToolTip>
             <TextBlock x:Name="lbl_Script"      Text="From Script"  Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
-        <Border x:Name="badge_URLButton"  Style="{DynamicResource BadgeUnselected}">
+        <Border x:Name="badge_Zip"        Style="{DynamicResource BadgeUnselected}" Margin="0,0,5,5">
+            <Border.ToolTip>
+                <ToolTip MaxWidth="270" Placement="Bottom">
+                    <StackPanel>
+                        <TextBlock Text="From Zip" Style="{DynamicResource TooltipTitleStyle}"/>
+                        <TextBlock Style="{DynamicResource TooltipBodyStyle}"
+                                   Text="Mengimpor satu folder .pushbutton langsung dari file .zip - misalnya tombol yang dibagikan orang lain sebagai zip. Nama tombol mengikuti nama folder di dalam zip."/>
+                        <Border Style="{DynamicResource TooltipStripStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{DynamicResource TooltipChipDimStyle}" Width="80">
+                                    <TextBlock Text="file.zip" Style="{DynamicResource TooltipChipLabelStyle}"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Border>
+                                <Path Data="M0,0 L7,0 L3.5,6 Z" Fill="{DynamicResource TextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                <Border Style="{DynamicResource TooltipChipHotStyle}">
+                                    <TextBlock Text="Tombol" Style="{DynamicResource TooltipChipLabelStyle}" Foreground="White"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{DynamicResource TooltipFooterStyle}"
+                                   Text="Kapan memakai: Zip berisi satu folder .pushbutton siap pakai. Nama diambil apa adanya dari zip."/>
+                    </StackPanel>
+                </ToolTip>
+            </Border.ToolTip>
+            <TextBlock x:Name="lbl_Zip"         Text="From Zip"      Style="{DynamicResource BadgeTextUnselected}"/>
+        </Border>
+        <Border x:Name="badge_URLButton"  Style="{DynamicResource BadgeUnselected}" Margin="0,0,5,5">
             <Border.ToolTip>
                 <ToolTip MaxWidth="270" Placement="Bottom">
                     <StackPanel>
@@ -122,7 +150,7 @@
             </Border.ToolTip>
             <TextBlock x:Name="lbl_URLButton"  Text="URLButton"  Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
-        <Border x:Name="badge_Stack"      Style="{DynamicResource BadgeUnselected}">
+        <Border x:Name="badge_Stack"      Style="{DynamicResource BadgeUnselected}" Margin="0,0,5,5">
             <Border.ToolTip>
                 <ToolTip MaxWidth="270" Placement="Bottom">
                     <StackPanel>
@@ -166,7 +194,7 @@
             </Border.ToolTip>
             <TextBlock x:Name="lbl_Stack"      Text="Stack"      Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
-        <Border x:Name="badge_Pulldown"   Style="{DynamicResource BadgeUnselected}">
+        <Border x:Name="badge_Pulldown"   Style="{DynamicResource BadgeUnselected}" Margin="0,0,5,5">
             <Border.ToolTip>
                 <ToolTip MaxWidth="270" Placement="Bottom">
                     <StackPanel>
@@ -207,7 +235,7 @@
             </Border.ToolTip>
             <TextBlock x:Name="lbl_Pulldown"   Text="Pulldown"   Style="{DynamicResource BadgeTextUnselected}"/>
         </Border>
-    </StackPanel>
+    </WrapPanel>
 
     <!-- Nested area: chips OR url OR script-picker, exactly one visible -->
     <Grid Grid.Column="2" Margin="0,0,12,0" VerticalAlignment="Top">
@@ -287,6 +315,29 @@
 
             <TextBlock Grid.Column="1"
                        x:Name="tb_ScriptPath"
+                       Text="No file selected"
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource TextMutedBrush}"/>
+        </Grid>
+
+        <!-- Zip mode (import an existing .pushbutton folder via a .zip file) -->
+        <Grid x:Name="zipArea" Visibility="Collapsed" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    x:Name="btn_BrowseZip"
+                    Content="Browse .zip&#x2026;"
+                    ToolTip="Pilih file .zip yang berisi satu folder .pushbutton."
+                    Style="{DynamicResource SecondaryOutlineButtonStyle}"/>
+
+            <TextBlock Grid.Column="1"
+                       x:Name="tb_ZipPath"
                        Text="No file selected"
                        Margin="10,0,0,0"
                        VerticalAlignment="Center"

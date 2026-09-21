@@ -1,25 +1,32 @@
 # -*- coding: utf-8 -*-
 title = "Button\nGenerator"
-doc = """Version = 1.1
-Date    = 28.08.2026
+doc = """Version = 1.2
+Date    = 21.09.2026
 
 Description:
 Quick pyRevit Button Generator with a friendly UI form. Create
-PushButtons, URLButtons, Stacks, Pulldowns, or import an existing
-script.py straight into a brand-new PushButton in one go.
+PushButtons, URLButtons, Stacks, Pulldowns, import an existing
+script.py straight into a brand-new PushButton, or import a
+ready-made .pushbutton folder from a .zip file - in one go.
 
 How-To:
 1. Click to open the form.
 2. Create rows for each Button/Container.
-3. Set Name, select Type (PushButton, From Script, URLButton, Stack, Pulldown).
+3. Set Name, select Type (PushButton, From Script, From Zip, URLButton, Stack, Pulldown).
 4. For "From Script": click Browse and pick an existing script.py.
-5. Select Target Panel (optional).
-6. Click Create Button. Validation issues show as red inline hints.
+5. For "From Zip": click Browse and pick a .zip containing exactly one
+   .pushbutton folder. The Name field is locked - the folder's own name
+   (from inside the zip) is used as-is.
+6. Select Target Panel (optional).
+7. Click Create Button. Validation issues show as red inline hints.
 
 To-Do:
 [FEATURE] - Generate panels/tabs directly from the form.
 
 Last Updates:
+- [21.09.2026] v1.2 Added "From Zip" button type - import a ready-made
+  .pushbutton folder straight from a .zip file (name locked to the zip's
+  own folder name).
 - [28.08.2026] v1.1 Auto-detect target panel (Sandbox-only in FGD, all panels otherwise).
 - [25.08.2026] v1.0 Ported from TTW-API into PrasKaaPyKit.
 
@@ -30,10 +37,10 @@ Author: PrasKaa"""
 # ╩╩ ╩╩  ╚═╝╩╚═ ╩ ╚═╝ IMPORTS
 #░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 import os, shutil
+import tempfile
+import zipfile
 from pyrevit.loader import sessionmgr      # To Reload pyRevit
 from pyrevit import forms, script
-import os
-import socket
 import clr
 
 # WPF Imports
@@ -49,7 +56,7 @@ from System.Windows.Markup          import XamlReader
 from System.Windows.Media           import SolidColorBrush, Color
 from System.Windows.Media.Animation import ColorAnimation, RepeatBehavior, FillBehavior
 from System.Windows.Media.Imaging   import BitmapImage
-from Microsoft.Win32                import OpenFileDialog     # native "Choose script.py" dialog
+from Microsoft.Win32                import OpenFileDialog     # native "Choose script.py / .zip" dialog
 
 
 # ╔═╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -57,20 +64,23 @@ from Microsoft.Win32                import OpenFileDialog     # native "Choose s
 # ╚  ╚═╝╝╚╝╚═╝ ╩ ╩╚═╝╝╚╝╚═╝ FUNCTIONS
 #░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 TYPE_PUSHBUTTON = 'PushButton'
-TYPE_SCRIPT     = 'Script'          # NEW: PushButton built from an existing script.py
+TYPE_SCRIPT     = 'Script'          # PushButton built from an existing script.py
+TYPE_ZIP        = 'Zip'             # NEW: PushButton imported from a .zip archive
 TYPE_URLBUTTON  = 'URLButton'
 TYPE_STACK      = 'Stack'
 TYPE_PULLDOWN   = 'Pulldown'
-ITEM_TYPES      = (TYPE_PUSHBUTTON, TYPE_SCRIPT, TYPE_URLBUTTON, TYPE_STACK, TYPE_PULLDOWN)
+ITEM_TYPES      = (TYPE_PUSHBUTTON, TYPE_SCRIPT, TYPE_ZIP, TYPE_URLBUTTON, TYPE_STACK, TYPE_PULLDOWN)
 SUFFIXES        = ('.pushbutton', '.urlbutton', '.stack', '.pulldown')
 STACK_MAX_CHILDREN = 3
 PULLDOWN_MAX_CHILDREN = 10
 
 # Final bundle suffix for each item type (used to build the on-disk folder name).
-# "Script" still produces a plain .pushbutton folder - only its script.py source differs.
+# "Script" and "Zip" still produce a plain .pushbutton folder - only the
+# source of script.py (and the rest of the bundle, for Zip) differs.
 SUFFIX_FOR_TYPE = {
     TYPE_PUSHBUTTON: '.pushbutton',
     TYPE_SCRIPT:     '.pushbutton',
+    TYPE_ZIP:        '.pushbutton',
     TYPE_URLBUTTON:  '.urlbutton',
     TYPE_STACK:      '.stack',
     TYPE_PULLDOWN:   '.pulldown',
@@ -80,6 +90,7 @@ SUFFIX_FOR_TYPE = {
 SELECTED_STYLE = {
     TYPE_PUSHBUTTON: 'BadgeSelectedSingle',
     TYPE_SCRIPT:     'BadgeSelectedSingle',
+    TYPE_ZIP:        'BadgeSelectedSingle',
     TYPE_URLBUTTON:  'BadgeSelectedSingle',
     TYPE_STACK:      'BadgeSelectedContainer',
     TYPE_PULLDOWN:   'BadgeSelectedContainer',
@@ -90,6 +101,7 @@ DEFAULT_HINT = u'Arahkan kursor ke badge tipe untuk melihat penjelasan singkat.'
 HINT_FOR_TYPE = {
     TYPE_PUSHBUTTON: u'PushButton: satu tombol menjalankan satu script. Folder .pushbutton.',
     TYPE_SCRIPT:     u'From Script: membuat tombol dari file script.py yang sudah ada (tanpa menulis kode).',
+    TYPE_ZIP:        u'From Zip: mengimpor satu folder .pushbutton langsung dari file .zip. Nama mengikuti nama folder di dalam zip.',
     TYPE_URLBUTTON:  u'URLButton: tombol yang membuka website. Isi kolom URL.',
     TYPE_STACK:      u'Stack: kumpulan maksimal 3 item berjajar - boleh PushButton, Pulldown, atau campuran.',
     TYPE_PULLDOWN:   u'Pulldown: satu tombol yang membuka daftar berisi hingga 10 PushButton.',
@@ -159,6 +171,82 @@ def replace_title(path_script, title):
 
     with open(path_script, 'wb') as f:
         f.write(u''.join(data).encode('utf-8'))
+
+
+def find_pushbutton_in_zip(zip_path):
+    """Inspect a .zip file and locate a single top-level (or one-level
+    nested) '*.pushbutton' folder inside it.
+
+    Returns (folder_name, member_prefix) on success, where member_prefix is
+    the path inside the archive that the .pushbutton folder's contents live
+    under (used to extract just that subtree). Returns (None, None) with an
+    error string if the zip doesn't contain exactly one .pushbutton folder.
+    """
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            names = zf.namelist()
+    except Exception:
+        return None, None, 'Could not read the zip file (corrupt or unsupported).'
+
+    # Collect distinct path segments that end in ".pushbutton", regardless
+    # of depth, by looking at every path component of every entry.
+    candidates = set()
+    for n in names:
+        n = n.replace('\\', '/').strip('/')
+        for part in n.split('/'):
+            if part.endswith('.pushbutton'):
+                # Reconstruct the path prefix up to and including this segment
+                idx = n.split('/').index(part)
+                prefix = '/'.join(n.split('/')[:idx + 1])
+                candidates.add(prefix)
+
+    if len(candidates) == 0:
+        return None, None, 'No .pushbutton folder found inside the zip.'
+    if len(candidates) > 1:
+        return None, None, 'Zip contains more than one .pushbutton folder - only one is supported.'
+
+    prefix = list(candidates)[0]
+    folder_name = prefix.split('/')[-1]
+    return folder_name, prefix, None
+
+
+def create_zipbutton(parent_folder, zip_path, log):
+    """Extract the single .pushbutton folder found inside zip_path and copy
+    it into parent_folder, using its original name as-is (title untouched)."""
+    if not zip_path or not os.path.exists(zip_path):
+        log.append('[ERR]  Zip file not found: {}'.format(zip_path))
+        return
+
+    folder_name, prefix, err = find_pushbutton_in_zip(zip_path)
+    if err:
+        log.append('[ERR]  "{}" -> {}'.format(os.path.basename(zip_path), err))
+        return
+
+    abs_path = os.path.join(parent_folder, folder_name)
+    if os.path.exists(abs_path):
+        log.append('[SKIP] "{}" already exists.'.format(folder_name))
+        return
+
+    tmp_dir = tempfile.mkdtemp(prefix='btn_zip_')
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            for member in zf.namelist():
+                norm = member.replace('\\', '/')
+                if norm.strip('/') == prefix or norm.strip('/').startswith(prefix + '/'):
+                    zf.extract(member, tmp_dir)
+
+        extracted_root = os.path.join(tmp_dir, *prefix.split('/'))
+        if not os.path.isdir(extracted_root):
+            log.append('[ERR]  "{}" -> Extraction failed, folder not found after unzip.'.format(folder_name))
+            return
+
+        shutil.copytree(extracted_root, abs_path)
+        log.append('[OK]   Zip "{}" <- {}'.format(folder_name, os.path.basename(zip_path)))
+    except Exception:
+        import traceback
+        log.append('[ERR]  Could not import "{}"\n{}'.format(folder_name, traceback.format_exc()))
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def create_pushbutton(parent_folder, name, log):
@@ -272,29 +360,6 @@ def load_xaml_part(filename):
     """Load a standalone XAML file into a fresh visual element."""
     return XamlReader.Parse(File.ReadAllText(os.path.join(path_xaml_dir, filename)))
 
-clr.AddReference('System.Net.Http')
-from System.Net.Http import HttpClient, StringContent
-from System.Text import Encoding
-
-# --- Telemetry config ---
-_SB_URL = "https://mcpqeksbbsmchxlishej.supabase.co/rest/v1/telemetry"
-_SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jcHFla3NiYnNtY2h4bGlzaGVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MDUxMDMsImV4cCI6MjEwNTM4MTEwM30.xEWidsKw5MUZ8j19RxTg2sFP7MCPYOyebbWIp9f2a3Y"
-
-
-def _send_telemetry(script_name):
-    try:
-        payload = (
-            '{"script_name":"%s","user_name":"%s","machine_name":"%s","revit_version":"%s"}'
-            % (script_name, os.environ.get("USERNAME", ""),
-               socket.gethostname(), __revit__.Application.VersionNumber)
-        )
-        client = HttpClient()
-        client.DefaultRequestHeaders.Add("apikey", _SB_KEY)
-        client.DefaultRequestHeaders.Add("Authorization", "Bearer " + _SB_KEY)
-        content = StringContent(payload, Encoding.UTF8, "application/json")
-        client.PostAsync(_SB_URL, content)
-    except:
-        pass
 
 # ╔═╗╔═╗╦═╗╔╦╗
 # ╠╣ ║ ║╠╦╝║║║
@@ -374,10 +439,14 @@ class GeneratorForm(forms.WPFWindow):
         script_area    = row.FindName('scriptArea')
         btn_browse     = row.FindName('btn_BrowseScript')
         tb_script_path = row.FindName('tb_ScriptPath')
+        zip_area       = row.FindName('zipArea')
+        btn_browse_zip = row.FindName('btn_BrowseZip')
+        tb_zip_path    = row.FindName('tb_ZipPath')
         btn_remove     = row.FindName('btn_Remove')
         badges = {
             TYPE_PUSHBUTTON: (row.FindName('badge_PushButton'), row.FindName('lbl_PushButton')),
             TYPE_SCRIPT:     (row.FindName('badge_Script'),     row.FindName('lbl_Script')),
+            TYPE_ZIP:        (row.FindName('badge_Zip'),        row.FindName('lbl_Zip')),
             TYPE_PULLDOWN:   (row.FindName('badge_Pulldown'),   row.FindName('lbl_Pulldown')),
             TYPE_STACK:      (row.FindName('badge_Stack'),      row.FindName('lbl_Stack')),
             TYPE_URLBUTTON:  (row.FindName('badge_URLButton'),  row.FindName('lbl_URLButton')),
@@ -386,6 +455,7 @@ class GeneratorForm(forms.WPFWindow):
         # 3) Per-row state
         tb_name.Text = default_name
         state = {'kind': default_type, 'children': [], 'chips': {}, 'script_path': None,
+                 'zip_path': None,
                  'tb_name': tb_name, 'tb_url': tb_url,
                  'tb_name_error': tb_name_error}
 
@@ -411,6 +481,14 @@ class GeneratorForm(forms.WPFWindow):
                 tb_script_path.Text = 'No file selected'
                 tb_script_path.ToolTip = None
 
+        def refresh_zip_label():
+            if state['zip_path']:
+                tb_zip_path.Text = os.path.basename(state['zip_path'])
+                tb_zip_path.ToolTip = state['zip_path']
+            else:
+                tb_zip_path.Text = 'No file selected'
+                tb_zip_path.ToolTip = None
+
         def browse_script():
             dlg = OpenFileDialog()
             dlg.Title  = 'Select a script.py to import'
@@ -428,6 +506,24 @@ class GeneratorForm(forms.WPFWindow):
                     tb_name.Text = guess
             refresh_script_label()
 
+        def browse_zip():
+            dlg = OpenFileDialog()
+            dlg.Title  = 'Select a .zip containing one .pushbutton folder'
+            dlg.Filter = 'Zip archive (*.zip)|*.zip|All files (*.*)|*.*'
+            if state['zip_path'] and os.path.exists(state['zip_path']):
+                dlg.InitialDirectory = os.path.dirname(state['zip_path'])
+            if dlg.ShowDialog():
+                state['zip_path'] = dlg.FileName
+                self._clear_row_error(state)   # picking a file may fix a "pick a zip" error
+                # Name is locked to whatever folder is inside the zip - inspect it now.
+                folder_name, _prefix, err = find_pushbutton_in_zip(dlg.FileName)
+                if err:
+                    tb_name.Text = ''
+                    self._set_row_error(state, err)
+                else:
+                    tb_name.Text = strip_suffix(folder_name)
+            refresh_zip_label()
+
         def select_type(kind):
             self._clear_row_error(state)    # type change may fix a type-specific issue
             state['kind'] = kind
@@ -443,20 +539,36 @@ class GeneratorForm(forms.WPFWindow):
                 chip_wrap.Visibility   = Visibility.Collapsed
                 url_area.Visibility    = Visibility.Visible
                 script_area.Visibility = Visibility.Collapsed
+                zip_area.Visibility    = Visibility.Collapsed
+                tb_name.IsEnabled      = True
             elif kind == TYPE_SCRIPT:
                 chip_wrap.Visibility   = Visibility.Collapsed
                 url_area.Visibility    = Visibility.Collapsed
                 script_area.Visibility = Visibility.Visible
+                zip_area.Visibility    = Visibility.Collapsed
+                tb_name.IsEnabled      = True
                 refresh_script_label()
+            elif kind == TYPE_ZIP:
+                chip_wrap.Visibility   = Visibility.Collapsed
+                url_area.Visibility    = Visibility.Collapsed
+                script_area.Visibility = Visibility.Collapsed
+                zip_area.Visibility    = Visibility.Visible
+                # Name is derived from the zip's own folder - lock the field.
+                tb_name.IsEnabled      = False
+                refresh_zip_label()
             elif kind in (TYPE_PULLDOWN, TYPE_STACK):
                 chip_wrap.Visibility   = Visibility.Visible
                 url_area.Visibility    = Visibility.Collapsed
                 script_area.Visibility = Visibility.Collapsed
+                zip_area.Visibility    = Visibility.Collapsed
+                tb_name.IsEnabled      = True
                 update_chip_input_visibility()
             else:   # PushButton -> nothing nested
                 chip_wrap.Visibility   = Visibility.Collapsed
                 url_area.Visibility    = Visibility.Collapsed
                 script_area.Visibility = Visibility.Collapsed
+                zip_area.Visibility    = Visibility.Collapsed
+                tb_name.IsEnabled      = True
 
         def remove_chip(text):
             self._clear_row_error(state)    # editing children may fix a count issue
@@ -515,6 +627,8 @@ class GeneratorForm(forms.WPFWindow):
                     self.Dispatcher.BeginInvoke(Action(lambda: tb_url.Focus()))
                 elif k == TYPE_SCRIPT:
                     self.Dispatcher.BeginInvoke(Action(browse_script))
+                elif k == TYPE_ZIP:
+                    self.Dispatcher.BeginInvoke(Action(browse_zip))
                 a.Handled = True
             bd.MouseLeftButtonDown += on_badge_click
             # Educational hint-bar updates on badge hover.
@@ -524,6 +638,7 @@ class GeneratorForm(forms.WPFWindow):
         tb_chip.TextChanged    += on_chip_text_changed
         tb_chip.PreviewKeyDown += on_chip_keydown
         btn_browse.Click        += lambda s, a: browse_script()
+        btn_browse_zip.Click    += lambda s, a: browse_zip()
         btn_remove.Click        += lambda s, a: self.sp_Rows.Children.Remove(row)
         # Any edit to this row clears its inline validation message.
         tb_name.TextChanged    += lambda s, a: self._clear_row_error(state)
@@ -629,11 +744,20 @@ class GeneratorForm(forms.WPFWindow):
             children    = list(st['children'])
             url         = (st['tb_url'].Text or '').strip()
             script_path = st['script_path']
+            zip_path    = st['zip_path']
 
             problem = None
-            if not name:
+            # For Zip rows, the "name" is auto-derived from the archive; a
+            # missing name at this point means the zip itself is missing/bad.
+            if kind == TYPE_ZIP:
+                if not (zip_path and os.path.exists(zip_path)):
+                    problem = 'Pick a .zip file to import.'
+                elif not name:
+                    problem = 'Pick a .zip file to import.'
+            if not problem and not name:
                 problem = 'Enter a name for this row.'
-            else:
+
+            if not problem:
                 folder_name = ensure_suffix(name, SUFFIX_FOR_TYPE[kind])
                 key = folder_name.lower()   # Windows folder names are case-insensitive
                 if key in seen:
@@ -659,7 +783,7 @@ class GeneratorForm(forms.WPFWindow):
                     first_bad = st['tb_name']
             else:
                 plan.append({'name': name, 'type': kind, 'children': children,
-                             'url': url, 'script_path': script_path})
+                             'url': url, 'script_path': script_path, 'zip_path': zip_path})
 
         # Form-level issue: no panel to create into (rare — the picker defaults to one).
         if target_panel is None:
@@ -681,7 +805,6 @@ class GeneratorForm(forms.WPFWindow):
 # ╩ ╩╩ ╩╩╝╚╝ MAIN
 #░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 #1️⃣ Paths
-_send_telemetry('FGD-Button Generator')   # send telemetry to Supabase
 path_script     = os.path.abspath(__file__)                          # ...Development.panel/Button Generator.pushbutton/script.py
 path_pushbutton = os.path.dirname(path_script)                       # ...Development.panel/Button Generator.pushbutton
 path_template   = os.path.join(path_pushbutton, 'template')          # ...Development.panel/Button Generator.pushbutton/template
@@ -724,6 +847,8 @@ for item in form.results:
         create_pushbutton(target_panel, item['name'], log)
     elif item['type'] == TYPE_SCRIPT:
         create_scriptbutton(target_panel, item['name'], item['script_path'], log)
+    elif item['type'] == TYPE_ZIP:
+        create_zipbutton(target_panel, item['zip_path'], log)
     elif item['type'] == TYPE_PULLDOWN:
         create_pulldown(target_panel,  item['name'], item['children'], log)
     elif item['type'] == TYPE_STACK:
