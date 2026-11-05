@@ -268,6 +268,46 @@ class BrowserWindow(Window):
             paths |= self._collect_subtree_paths(c)
         return paths
 
+    def _find_item_by_path(self, path):
+        """Return the live TreeViewItem whose Tag.path matches, or None.
+        Matches by stable logical identity (node.path), not display name."""
+        def walk(items):
+            for item in items:
+                node = item.Tag
+                if node is not None and node.path == path:
+                    return item
+                found = walk(item.Items)
+                if found is not None:
+                    return found
+            return None
+        return walk(self.tv_Tree.Items)
+
+    def _restore_selection_by_path(self, path):
+        """Restore IsSelected after a filter pass without mutating expansion
+        state or scrolling. Used when clearing/changing search so the filter
+        only removes/adds visibility constraints, not the user's selection."""
+        item = self._find_item_by_path(path)
+        if item is None:
+            return
+        if not item.IsSelected:
+            item.IsSelected = True
+        # Keep the logical selection in sync even if WPF raised
+        # SelectedItemChanged with null during the filter pass.
+        node = item.Tag
+        if node is not None and self._selected_node is not node:
+            self._selected_node = node
+            self.tb_SelectedPath.Text = u'{}\n{}'.format(node.display_name, node.path)
+            self.tb_RenameInput.Text = node.display_name
+            manageable = node.kind in core.MANAGEABLE_KINDS
+            self.sp_ExistingActions.Visibility = Visibility.Visible if manageable else Visibility.Collapsed
+            self._set_actions_enabled(manageable)
+            self._suppress_slideout_event = True
+            self.cb_Slideout.IsEnabled = False
+            self.cb_Slideout.IsChecked = False
+            self._suppress_slideout_event = False
+            self._update_add_new_section(node)
+            self._populate_move_targets()
+
     def _reselect_by_path(self, path):
         def walk(items, ancestors):
             for item in items:
@@ -292,9 +332,16 @@ class BrowserWindow(Window):
 
     # ---- search filter -------------------------------------------------
     def _on_search_changed(self, sender, args):
+        # Preserve selection across visibility/expansion changes caused by
+        # filtering. WPF can clear IsSelected when a TreeViewItem is collapsed
+        # or when expansion state changes during the filter pass; clearing the
+        # search must only remove the filter, not reset TreeView state.
+        selected_path = self._selected_node.path if self._selected_node else None
         query = (self.tb_Search.Text or '').strip().lower()
         for item in self.tv_Tree.Items:
             self._apply_search_filter(item, query)
+        if selected_path:
+            self._restore_selection_by_path(selected_path)
 
     def _apply_search_filter(self, item, query):
         """Recursively hide tree rows that don't match, keep a row visible
